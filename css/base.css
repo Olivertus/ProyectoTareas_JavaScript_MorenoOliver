@@ -1,0 +1,62 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  padding: var(--space-4);
+}
+
+/* Tarjeta principal del diseño: 1586px de ancho máximo, centrada */
+main {
+  max-width: 1586px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+@media (min-width: 768px) {
+  body {
+    padding: 54px var(--space-6);
+  }
+
+  main {
+    padding: 38px 52px;
+  }
+}
