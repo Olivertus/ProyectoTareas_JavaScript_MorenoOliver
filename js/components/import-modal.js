@@ -27,7 +27,8 @@ template.innerHTML = `
     }
 
     button:focus-visible,
-    input:focus-visible {
+    input:focus-visible,
+    select:focus-visible {
       outline: 2px solid var(--color-primary);
       outline-offset: 2px;
     }
@@ -122,6 +123,30 @@ template.innerHTML = `
     .error-message {
       margin: 0;
       color: var(--color-danger);
+    }
+
+    .category-field {
+      display: grid;
+      gap: var(--space-2);
+      margin-bottom: var(--space-4);
+    }
+
+    .category-field label {
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+    }
+
+    .category-field select {
+      width: 100%;
+      height: 42px;
+      padding: 9px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-button);
+      background: var(--color-surface-raised);
+      color: var(--color-text);
+      font: inherit;
+      font-size: var(--font-size-button);
+      color-scheme: dark;
     }
 
     .select-all,
@@ -249,6 +274,13 @@ template.innerHTML = `
       </div>
 
       <div class="content" hidden>
+        <div class="category-field">
+          <label for="import-category">Categoría de las tareas importadas</label>
+          <select id="import-category">
+            <option value="">Sin categoría</option>
+          </select>
+        </div>
+
         <label class="select-all">
           <input class="select-all-input" type="checkbox">
           <span>Seleccionar todo</span>
@@ -269,6 +301,7 @@ template.innerHTML = `
 
 class ImportModal extends HTMLElement {
   #todos = [];
+  #categories = [];
   #selected = new Set();
   #requestId = 0;
 
@@ -285,6 +318,7 @@ class ImportModal extends HTMLElement {
     this.errorMessage = root.querySelector(".error-message");
     this.contentEl = root.querySelector(".content");
     this.selectAll = root.querySelector(".select-all-input");
+    this.categorySelect = root.querySelector("#import-category");
     this.list = root.querySelector(".todos");
     this.counter = root.querySelector(".counter");
     this.importButton = root.querySelector(".import");
@@ -307,17 +341,49 @@ class ImportModal extends HTMLElement {
     });
   }
 
+  get categories() {
+    return this.#categories;
+  }
+
+  set categories(value) {
+    this.#categories = Array.isArray(value) ? value : [];
+    this.#renderCategoryOptions();
+  }
+
   open() {
     if (this.dialog.open) {
       return;
     }
 
+    // Cada vez que se abre, la categoría empieza en "Sin categoría"
+    this.categorySelect.value = "";
     this.dialog.showModal();
     this.#load();
   }
 
   close() {
     this.dialog.close();
+  }
+
+  // Dibuja las opciones del selector. Se conserva la opción elegida si sigue existiendo.
+  #renderCategoryOptions() {
+    const previous = this.categorySelect.value;
+    const none = document.createElement("option");
+
+    none.value = "";
+    none.textContent = "Sin categoría";
+
+    const options = this.#categories.map((category) => {
+      const option = document.createElement("option");
+
+      option.value = category.id;
+      option.textContent = category.name;
+
+      return option;
+    });
+
+    this.categorySelect.replaceChildren(none, ...options);
+    this.categorySelect.value = this.#categories.some((category) => category.id === previous) ? previous : "";
   }
 
   async #load() {
@@ -424,7 +490,7 @@ class ImportModal extends HTMLElement {
 
     this.dispatchEvent(
       new CustomEvent("tasks-import", {
-        detail: { tasks },
+        detail: { tasks, categoryId: this.categorySelect.value || null },
         bubbles: true,
         composed: true,
       })
