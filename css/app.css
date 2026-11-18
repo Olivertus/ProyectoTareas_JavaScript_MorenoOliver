@@ -143,6 +143,24 @@ task-app {
   outline-offset: 2px;
 }
 
+.filter-categories {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.filter-group-title {
+  padding: 4px 18px 8px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* Si hay muchas categorías, la lista del menú hace scroll */
+.filter-categories-options {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
 .filter-option[aria-checked="true"]::after {
   content: "✓";
   color: var(--color-success);
