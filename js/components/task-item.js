@@ -171,6 +171,7 @@ template.innerHTML = `
       <span class="title"></span>
       <span class="meta">
         <time class="date"></time>
+        <span class="badge category" hidden></span>
         <span class="badge" hidden>Importada</span>
       </span>
     </div>
@@ -212,6 +213,7 @@ function formatDate(isoString) {
 
 class TaskItem extends HTMLElement {
   #task = null;
+  #categoryName = "";
 
   constructor() {
     super();
@@ -225,7 +227,8 @@ class TaskItem extends HTMLElement {
     this.contentEl = root.querySelector(".content");
     this.titleEl = root.querySelector(".title");
     this.dateEl = root.querySelector(".date");
-    this.badge = root.querySelector(".badge");
+    this.categoryBadge = root.querySelector(".badge.category");
+    this.badge = root.querySelector(".badge:not(.category)");
     this.menuButton = root.querySelector(".menu-button");
     this.menu = root.querySelector(".menu");
     this.editButton = root.querySelector(".edit");
@@ -279,6 +282,16 @@ class TaskItem extends HTMLElement {
     this.#render();
   }
 
+  // Nombre de la categoría de la tarea (lo entrega <task-list>). "" = sin categoría
+  get categoryName() {
+    return this.#categoryName;
+  }
+
+  set categoryName(value) {
+    this.#categoryName = typeof value === "string" ? value : "";
+    this.#render();
+  }
+
   #render() {
     const task = this.#task;
 
@@ -294,6 +307,8 @@ class TaskItem extends HTMLElement {
     this.titleEl.textContent = task.title;
     this.dateEl.textContent = formatDate(task.createdAt);
     this.dateEl.setAttribute("datetime", task.createdAt);
+    this.categoryBadge.textContent = this.#categoryName;
+    this.categoryBadge.hidden = this.#categoryName === "";
     this.badge.hidden = !task.imported;
     this.editButton.hidden = Boolean(task.imported);
 
