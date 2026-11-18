@@ -194,6 +194,7 @@ template.innerHTML = `
       <div class="meta">
         <time class="date"></time>
         <span class="badge status"></span>
+        <span class="badge category" hidden></span>
         <span class="badge imported" hidden>Importada</span>
       </div>
 
@@ -238,6 +239,7 @@ class TaskDetailModal extends HTMLElement {
     this.dateEl = root.querySelector(".date");
     this.statusEl = root.querySelector(".status");
     this.importedEl = root.querySelector(".imported");
+    this.categoryEl = root.querySelector(".category");
     this.descriptionEl = root.querySelector(".description");
 
     root.querySelector(".close").addEventListener("click", () => this.close());
@@ -271,8 +273,8 @@ class TaskDetailModal extends HTMLElement {
     // Esc ya cierra el <dialog> por defecto (showModal)
   }
 
-  // open({ task }) muestra la información de la tarea (solo lectura)
-  open({ task } = {}) {
+  // open({ task, categoryName }) muestra la información de la tarea (solo lectura)
+  open({ task, categoryName = "" } = {}) {
     if (!task || this.dialog.open) {
       return;
     }
@@ -291,6 +293,8 @@ class TaskDetailModal extends HTMLElement {
     this.statusEl.textContent = completed ? "Terminada" : "Pendiente";
     this.statusEl.classList.toggle("done", completed);
     this.importedEl.hidden = !task.imported;
+    this.categoryEl.textContent = categoryName;
+    this.categoryEl.hidden = categoryName === "";
 
     this.descriptionEl.textContent = description || "Sin descripción";
     this.descriptionEl.classList.toggle("empty", description === "");
