@@ -1,5 +1,5 @@
 import { generateId } from "../utils/id-generator.js";
-import { getTasks, saveTasks } from "./storage-service.js";
+import { getCategories, getTasks, saveTasks } from "./storage-service.js";
 
 function normalizeTitle(title) {
   return title.trim().toLowerCase();
@@ -9,7 +9,16 @@ function cleanDescription(description) {
   return typeof description === "string" ? description.trim() : "";
 }
 
-export function addTask({ title, description, completed = false, createdAt } = {}) {
+// Devuelve el id solo si la categoría existe; si no, null ("sin categoría")
+function resolveCategoryId(categoryId) {
+  if (typeof categoryId !== "string" || categoryId === "") {
+    return null;
+  }
+
+  return getCategories().some((category) => category.id === categoryId) ? categoryId : null;
+}
+
+export function addTask({ title, description, completed = false, createdAt, categoryId } = {}) {
   const cleanTitle = typeof title === "string" ? title.trim() : "";
 
   if (!cleanTitle) {
@@ -23,6 +32,7 @@ export function addTask({ title, description, completed = false, createdAt } = {
     createdAt: createdAt ?? new Date().toISOString(),
     completed: Boolean(completed),
     imported: false,
+    categoryId: resolveCategoryId(categoryId),
   };
 
   if (!saveTasks([...getTasks(), task])) {
@@ -58,6 +68,10 @@ export function updateTask(id, changes = {}) {
 
   if ("completed" in changes) {
     updated.completed = Boolean(changes.completed);
+  }
+
+  if ("categoryId" in changes) {
+    updated.categoryId = resolveCategoryId(changes.categoryId);
   }
 
   tasks[index] = updated;
@@ -111,7 +125,7 @@ export function clearAll() {
   return saveTasks([]) ? [] : null;
 }
 
-export function addImportedTasks(importedTasks) {
+export function addImportedTasks(importedTasks, categoryId = null) {
   if (!Array.isArray(importedTasks)) {
     return [];
   }
@@ -121,6 +135,7 @@ export function addImportedTasks(importedTasks) {
     current.filter((task) => task.imported).map((task) => normalizeTitle(task.title))
   );
   const toAdd = [];
+  const validCategoryId = resolveCategoryId(categoryId);
 
   for (const task of importedTasks) {
     if (typeof task?.title !== "string") {
@@ -134,7 +149,7 @@ export function addImportedTasks(importedTasks) {
     }
 
     knownTitles.add(key);
-    toAdd.push({ ...task, imported: true });
+    toAdd.push({ ...task, imported: true, categoryId: validCategoryId });
   }
 
   if (toAdd.length > 0 && !saveTasks([...current, ...toAdd])) {
