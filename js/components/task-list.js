@@ -33,6 +33,7 @@ template.innerHTML = `
 
 class TaskList extends HTMLElement {
   #tasks = [];
+  #categories = [];
   #filtered = false;
 
   constructor() {
@@ -56,6 +57,15 @@ class TaskList extends HTMLElement {
     this.#render();
   }
 
+  get categories() {
+    return this.#categories;
+  }
+
+  set categories(value) {
+    this.#categories = Array.isArray(value) ? value : [];
+    this.#render();
+  }
+
   get filtered() {
     return this.#filtered;
   }
@@ -66,10 +76,13 @@ class TaskList extends HTMLElement {
   }
 
   #render() {
+    const names = new Map(this.#categories.map((category) => [category.id, category.name]));
+
     const items = this.#tasks.map((task) => {
       const item = document.createElement("task-item");
 
       item.setAttribute("role", "listitem");
+      item.categoryName = names.get(task.categoryId) ?? "";
       item.task = task;
 
       return item;
