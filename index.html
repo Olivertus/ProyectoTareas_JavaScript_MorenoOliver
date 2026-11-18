@@ -57,6 +57,12 @@
                   <button class="filter-option" type="button" role="menuitemradio" aria-checked="true" data-filter="all">Todas</button>
                   <button class="filter-option" type="button" role="menuitemradio" aria-checked="false" data-filter="pending">Pendientes</button>
                   <button class="filter-option" type="button" role="menuitemradio" aria-checked="false" data-filter="completed">Completadas</button>
+
+                  <!-- Las opciones de categoría las dibuja <task-app> con JavaScript -->
+                  <div class="filter-categories" role="group" aria-labelledby="filter-categories-title">
+                    <p class="filter-group-title" id="filter-categories-title">Categoría</p>
+                    <div class="filter-categories-options"></div>
+                  </div>
                 </div>
               </div>
 
