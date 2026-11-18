@@ -1,13 +1,12 @@
 import { generateId } from "../utils/id-generator.js";
 
 const API_URL = "https://jsonplaceholder.typicode.com/todos";
-const MAX_TODOS = 25;
 
 export async function fetchTodos() {
   let response;
 
   try {
-    response = await fetch(`${API_URL}?_limit=${MAX_TODOS}`);
+    response = await fetch(API_URL);
   } catch (error) {
     throw new Error("No se pudo conectar con el servidor. Revisa tu conexión a internet.");
   }
@@ -31,7 +30,6 @@ export async function fetchTodos() {
   const importedAt = new Date().toISOString();
 
   return data
-    .slice(0, MAX_TODOS)
     .filter((todo) => typeof todo?.title === "string" && todo.title.trim() !== "")
     .map((todo) => ({
       id: generateId(),
