@@ -26,6 +26,7 @@ template.innerHTML = `
 
     button:focus-visible,
     input:focus-visible,
+    select:focus-visible,
     textarea:focus-visible {
       outline: 2px solid var(--color-primary);
       outline-offset: 2px;
@@ -131,6 +132,19 @@ template.innerHTML = `
       color-scheme: dark;
     }
 
+    select {
+      width: 100%;
+      height: 42px;
+      padding: 9px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-button);
+      background: var(--color-surface-raised);
+      color: var(--color-text);
+      font: inherit;
+      font-size: var(--font-size-button);
+      color-scheme: dark;
+    }
+
     textarea {
       width: 100%;
       min-height: 96px;
@@ -145,6 +159,7 @@ template.innerHTML = `
     }
 
     input:focus-visible,
+    select:focus-visible,
     textarea:focus-visible {
       outline: 2px solid var(--color-primary);
       outline-offset: 1px;
@@ -234,6 +249,13 @@ template.innerHTML = `
       </div>
 
       <div class="field">
+        <label for="task-category">Categoría</label>
+        <select id="task-category" name="categoryId">
+          <option value="">Sin categoría</option>
+        </select>
+      </div>
+
+      <div class="field">
         <label for="task-date">Fecha de registro</label>
         <input id="task-date" name="createdAt" type="date">
       </div>
@@ -264,6 +286,9 @@ class TaskFormModal extends HTMLElement {
   // Tarea que se está editando. null = modo crear
   #task = null;
 
+  // Categorías disponibles para el selector (las entrega <task-app>)
+  #categories = [];
+
   constructor() {
     super();
 
@@ -277,6 +302,7 @@ class TaskFormModal extends HTMLElement {
     this.titleInput = root.querySelector("#task-title");
     this.descriptionInput = root.querySelector("#task-description");
     this.dateInput = root.querySelector("#task-date");
+    this.categorySelect = root.querySelector("#task-category");
     this.completedInput = root.querySelector("#task-completed");
     this.titleError = root.querySelector("#title-error");
     this.saveButton = root.querySelector(".save");
@@ -312,6 +338,15 @@ class TaskFormModal extends HTMLElement {
     });
   }
 
+  get categories() {
+    return this.#categories;
+  }
+
+  set categories(value) {
+    this.#categories = Array.isArray(value) ? value : [];
+    this.#renderCategoryOptions();
+  }
+
   get isEditing() {
     return this.#task !== null;
   }
@@ -326,12 +361,14 @@ class TaskFormModal extends HTMLElement {
     this.#task = task;
     this.form.reset();
     this.#clearError();
+    this.#renderCategoryOptions();
 
     if (task) {
       this.titleEl.textContent = "Editar tarea";
       this.titleInput.value = task.title;
       this.descriptionInput.value = task.description ?? "";
       this.completedInput.checked = Boolean(task.completed);
+      this.categorySelect.value = task.categoryId ?? "";
       this.dateInput.value = toDateInputValue(new Date(task.createdAt));
       this.dateInput.readOnly = true;
     } else {
@@ -346,6 +383,27 @@ class TaskFormModal extends HTMLElement {
 
   close() {
     this.dialog.close();
+  }
+
+  // Dibuja las opciones del selector. Se conserva la opción elegida si sigue existiendo.
+  #renderCategoryOptions() {
+    const previous = this.categorySelect.value;
+    const none = document.createElement("option");
+
+    none.value = "";
+    none.textContent = "Sin categoría";
+
+    const options = this.#categories.map((category) => {
+      const option = document.createElement("option");
+
+      option.value = category.id;
+      option.textContent = category.name;
+
+      return option;
+    });
+
+    this.categorySelect.replaceChildren(none, ...options);
+    this.categorySelect.value = this.#categories.some((category) => category.id === previous) ? previous : "";
   }
 
   // El título es obligatorio y no puede tener solo espacios
@@ -382,6 +440,7 @@ class TaskFormModal extends HTMLElement {
       description: this.descriptionInput.value.trim(),
       createdAt: this.#getCreatedAt(),
       completed: this.completedInput.checked,
+      categoryId: this.categorySelect.value || null,
     };
 
     // El id solo viene al editar
