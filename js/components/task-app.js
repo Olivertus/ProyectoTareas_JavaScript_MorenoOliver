@@ -30,6 +30,9 @@ class TaskApp extends HTMLElement {
   // Filtro por estado: "all" | "pending" | "completed"
   #filter = "all";
 
+  // Filtro por categoría: "all" | "none" (sin categoría) | id de una categoría
+  #categoryFilter = "all";
+
   // Texto del buscador
   #search = "";
 
@@ -60,6 +63,7 @@ class TaskApp extends HTMLElement {
     this.filterButton = this.querySelector(".filter");
     this.filterMenu = this.querySelector(".filter-menu");
     this.filterOptions = this.querySelectorAll(".filter-option");
+    this.categoryOptions = this.querySelector(".filter-categories-options");
     this.clearButton = this.querySelector(".clear");
     this.list = this.querySelector("task-list");
     this.formModal = this.querySelector("task-form-modal");
@@ -78,6 +82,13 @@ class TaskApp extends HTMLElement {
     });
 
     this.filterButton.addEventListener("click", () => this.#toggleFilterMenu());
+    this.categoryOptions.addEventListener("click", (event) => {
+      const option = event.target.closest(".filter-option");
+
+      if (option) {
+        this.#setCategoryFilter(option.dataset.category);
+      }
+    });
     this.filterOptions.forEach((option) => {
       option.addEventListener("click", () => this.#setFilter(option.dataset.filter));
     });
@@ -116,6 +127,14 @@ class TaskApp extends HTMLElement {
     this.importModal.categories = this.#categories;
     this.categoryModal.categories = this.#categories;
 
+    // Si se eliminó la categoría que estaba filtrada, se vuelve a mostrar todo
+    const exists = this.#categories.some((category) => category.id === this.#categoryFilter);
+
+    if (this.#categoryFilter !== "all" && this.#categoryFilter !== "none" && !exists) {
+      this.#categoryFilter = "all";
+    }
+
+    this.#renderCategoryFilter();
     this.#render();
   }
 
@@ -160,6 +179,40 @@ class TaskApp extends HTMLElement {
       option.setAttribute("aria-checked", String(option.dataset.filter === filter));
     });
 
+    this.#closeFilterMenu();
+    this.filterButton.focus();
+    this.#render();
+  }
+
+  // Dibuja las opciones de categoría del menú: Todas, Sin categoría y cada categoría
+  #renderCategoryFilter() {
+    const choices = [
+      { value: "all", label: "Todas las categorías" },
+      { value: "none", label: "Sin categoría" },
+      ...this.#categories.map((category) => ({ value: category.id, label: category.name })),
+    ];
+
+    const buttons = choices.map(({ value, label }) => {
+      const button = document.createElement("button");
+
+      button.className = "filter-option";
+      button.type = "button";
+      button.setAttribute("role", "menuitemradio");
+      button.setAttribute("aria-checked", String(value === this.#categoryFilter));
+      button.dataset.category = value;
+      button.textContent = label;
+
+      return button;
+    });
+
+    this.categoryOptions.replaceChildren(...buttons);
+  }
+
+  // Elige una categoría para filtrar y cierra el popup
+  #setCategoryFilter(value) {
+    this.#categoryFilter = value;
+
+    this.#renderCategoryFilter();
     this.#closeFilterMenu();
     this.filterButton.focus();
     this.#render();
@@ -365,7 +418,8 @@ class TaskApp extends HTMLElement {
     const visible = this.#getVisibleTasks();
 
     // "Sin resultados" solo si hay tareas pero el filtro o la búsqueda las ocultan todas
-    const hasFilters = this.#filter !== "all" || this.#search.trim() !== "";
+    const hasFilters =
+      this.#filter !== "all" || this.#categoryFilter !== "all" || this.#search.trim() !== "";
 
     this.list.filtered = hasFilters && this.#tasks.length > 0;
     this.list.categories = this.#categories;
@@ -390,7 +444,7 @@ class TaskApp extends HTMLElement {
     }
   }
 
-  // Aplica el filtro por estado y después la búsqueda
+  // Aplica el filtro por estado, el de categoría y después la búsqueda
   #getVisibleTasks() {
     let tasks = this.#tasks;
 
@@ -398,6 +452,12 @@ class TaskApp extends HTMLElement {
       tasks = tasks.filter((task) => !task.completed);
     } else if (this.#filter === "completed") {
       tasks = tasks.filter((task) => task.completed);
+    }
+
+    if (this.#categoryFilter === "none") {
+      tasks = tasks.filter((task) => !task.categoryId);
+    } else if (this.#categoryFilter !== "all") {
+      tasks = tasks.filter((task) => task.categoryId === this.#categoryFilter);
     }
 
     const text = normalize(this.#search.trim());
