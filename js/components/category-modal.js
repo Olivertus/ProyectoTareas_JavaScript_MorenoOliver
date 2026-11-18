@@ -272,8 +272,14 @@ template.innerHTML = `
   </dialog>
 `;
 
+// Segundos que el mensaje de éxito queda visible
+const STATUS_DURATION_MS = 3000;
+
 class CategoryModal extends HTMLElement {
   #categories = [];
+
+  // Temporizador que oculta el mensaje de éxito
+  #statusTimer = null;
 
   // Id de la categoría que se está renombrando. null = modo agregar
   #editingId = null;
@@ -368,10 +374,16 @@ class CategoryModal extends HTMLElement {
     this.input.focus();
   }
 
-  // Mensaje de éxito dentro del modal
+  // Mensaje de éxito dentro del modal: se oculta solo después de unos segundos
   notify(message) {
+    clearTimeout(this.#statusTimer);
+
     this.statusEl.textContent = message;
     this.statusEl.hidden = message === "";
+
+    if (message !== "") {
+      this.#statusTimer = setTimeout(() => this.notify(""), STATUS_DURATION_MS);
+    }
   }
 
   #clearError() {
