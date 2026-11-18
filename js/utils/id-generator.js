@@ -10,9 +10,10 @@ Ejemplo: task-mh4k7q2z-9f3a
 - El sufijo aleatorio evita choques si dos IDs se crean en el mismo milisegundo.
  */
 
-export function generateId() {
+// El prefijo permite reutilizar el estándar para otros datos: "task" (tareas) o "cat" (categorías)
+export function generateId(prefix = "task") {
   const timestamp = Date.now().toString(36);
   const random = Math.random().toString(36).slice(2, 6).padEnd(4, "0");
 
-  return `task-${timestamp}-${random}`;
+  return `${prefix}-${timestamp}-${random}`;
 }
