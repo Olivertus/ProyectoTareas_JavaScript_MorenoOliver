@@ -2,9 +2,11 @@ import "./task-list.js";
 import "./task-form-modal.js";
 import "./task-detail-modal.js";
 import "./import-modal.js";
+import "./category-modal.js";
 import "./confirm-dialog.js";
 import "./toast-message.js";
-import { getTasks } from "../services/storage-service.js";
+import { getCategories, getTasks } from "../services/storage-service.js";
+import { addCategory, countTasksInCategory, deleteCategory, updateCategory } from "../services/category-service.js";
 import { addImportedTasks, addTask, clearAll, deleteTask, toggleTask, updateTask } from "../services/task-service.js";
 
 // <task-app> no dibuja nada: el HTML está en index.html y los estilos en css/app.css.
@@ -21,6 +23,9 @@ function normalize(text) {
 class TaskApp extends HTMLElement {
   // Lista completa de tareas (viene del localStorage)
   #tasks = [];
+
+  // Categorías disponibles (también vienen del localStorage)
+  #categories = [];
 
   // Filtro por estado: "all" | "pending" | "completed"
   #filter = "all";
@@ -51,6 +56,7 @@ class TaskApp extends HTMLElement {
     this.searchInput = this.querySelector(".search-input");
     this.addButton = this.querySelector(".add");
     this.importButton = this.querySelector(".import");
+    this.categoriesButton = this.querySelector(".categories");
     this.filterButton = this.querySelector(".filter");
     this.filterMenu = this.querySelector(".filter-menu");
     this.filterOptions = this.querySelectorAll(".filter-option");
@@ -59,6 +65,7 @@ class TaskApp extends HTMLElement {
     this.formModal = this.querySelector("task-form-modal");
     this.detailModal = this.querySelector("task-detail-modal");
     this.importModal = this.querySelector("import-modal");
+    this.categoryModal = this.querySelector("category-modal");
     this.confirmDialog = this.querySelector("confirm-dialog");
     this.toast = this.querySelector("toast-message");
 
@@ -85,6 +92,12 @@ class TaskApp extends HTMLElement {
     this.clearButton.addEventListener("click", () => this.#onClear());
     this.importModal.addEventListener("tasks-import", (event) => this.#onTasksImport(event));
 
+    // Categorías: el botón abre el modal y sus eventos llegan hasta aquí
+    this.categoriesButton.addEventListener("click", () => this.categoryModal.open());
+    this.categoryModal.addEventListener("category-create", (event) => this.#onCategoryCreate(event));
+    this.categoryModal.addEventListener("category-update", (event) => this.#onCategoryUpdate(event));
+    this.categoryModal.addEventListener("category-delete", (event) => this.#onCategoryDelete(event));
+
     // Eventos que salen de cada <task-item> (burbujean hasta la lista)
     this.list.addEventListener("task-toggle", (event) => this.#onTaskToggle(event));
     this.detailModal.addEventListener("task-edit", (event) => this.#onTaskEdit(event));
@@ -93,10 +106,22 @@ class TaskApp extends HTMLElement {
     this.list.addEventListener("task-delete", (event) => this.#onTaskDelete(event));
   }
 
-  // Lee las tareas guardadas y vuelve a dibujar
+  // Lee las tareas y las categorías guardadas y vuelve a dibujar
   #loadTasks() {
     this.#tasks = getTasks();
+    this.#categories = getCategories();
+
+    // Los selectores y el modal de categorías siempre reciben la lista actualizada
+    this.formModal.categories = this.#categories;
+    this.importModal.categories = this.#categories;
+    this.categoryModal.categories = this.#categories;
+
     this.#render();
+  }
+
+  // Nombre de una categoría a partir de su id ("" si la tarea no tiene o ya no existe)
+  #getCategoryName(categoryId) {
+    return this.#categories.find((category) => category.id === categoryId)?.name ?? "";
   }
 
   // ---------- Popup del filtro ----------
@@ -147,7 +172,7 @@ class TaskApp extends HTMLElement {
     const task = this.#tasks.find((item) => item.id === event.detail.id);
 
     if (task) {
-      this.detailModal.open({ task });
+      this.detailModal.open({ task, categoryName: this.#getCategoryName(task.categoryId) });
     }
   }
 
@@ -211,9 +236,73 @@ class TaskApp extends HTMLElement {
     }
   }
 
+  // ---------- Categorías ----------
+
+  // Nueva categoría desde el modal de categorías
+  #onCategoryCreate(event) {
+    const { error } = addCategory(event.detail.name);
+
+    if (error) {
+      this.categoryModal.showError(error);
+      return;
+    }
+
+    this.#loadTasks();
+    this.categoryModal.reset("Categoría creada.");
+  }
+
+  // Renombrar una categoría
+  #onCategoryUpdate(event) {
+    const { id, name } = event.detail;
+    const { error } = updateCategory(id, name);
+
+    if (error) {
+      this.categoryModal.showError(error);
+      return;
+    }
+
+    this.#loadTasks();
+    this.categoryModal.reset("Categoría actualizada.");
+  }
+
+  // Eliminar una categoría: pide confirmación y avisa cuántas tareas quedarán sin categoría
+  async #onCategoryDelete(event) {
+    const category = this.#categories.find((item) => item.id === event.detail.id);
+
+    if (!category) {
+      return;
+    }
+
+    const used = countTasksInCategory(category.id);
+    const consequence =
+      used === 0
+        ? "Esta acción no se puede deshacer."
+        : `${used === 1 ? "La tarea que la usa quedará" : `Las ${used} tareas que la usan quedarán`} sin categoría. Esta acción no se puede deshacer.`;
+
+    const accepted = await this.confirmDialog.open({
+      title: "Eliminar categoría",
+      message: `¿Quieres eliminar la categoría "${category.name}"? ${consequence}`,
+      confirmText: "Eliminar",
+    });
+
+    if (!accepted) {
+      return;
+    }
+
+    const deleted = deleteCategory(category.id);
+
+    this.#loadTasks();
+
+    if (deleted) {
+      this.categoryModal.notify("Categoría eliminada.");
+    } else {
+      this.categoryModal.showError("No se pudo eliminar. Revisa que el navegador permita guardar datos.");
+    }
+  }
+
   // Tareas elegidas en el modal de importar (los repetidos se descartan solos)
   #onTasksImport(event) {
-    const added = addImportedTasks(event.detail.tasks);
+    const added = addImportedTasks(event.detail.tasks, event.detail.categoryId);
 
     this.#loadTasks();
 
@@ -229,10 +318,10 @@ class TaskApp extends HTMLElement {
 
   // Guardar desde el formulario: con id actualiza, sin id crea
   #onTaskSave(event) {
-    const { id, title, description, createdAt, completed } = event.detail;
+    const { id, title, description, createdAt, completed, categoryId } = event.detail;
 
     if (id) {
-      const updated = updateTask(id, { title, description, completed });
+      const updated = updateTask(id, { title, description, completed, categoryId });
 
       if (updated) {
         this.toast.show("Tarea actualizada");
@@ -240,7 +329,7 @@ class TaskApp extends HTMLElement {
         this.#showSaveError();
       }
     } else {
-      const created = addTask({ title, description, createdAt, completed });
+      const created = addTask({ title, description, createdAt, completed, categoryId });
 
       if (created) {
         this.toast.show("Tarea creada");
@@ -279,6 +368,7 @@ class TaskApp extends HTMLElement {
     const hasFilters = this.#filter !== "all" || this.#search.trim() !== "";
 
     this.list.filtered = hasFilters && this.#tasks.length > 0;
+    this.list.categories = this.#categories;
     this.list.tasks = visible;
 
     this.#renderSummary();
